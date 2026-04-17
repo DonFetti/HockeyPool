@@ -65,6 +65,14 @@ export type NormalizedSeries = {
   seriesLink?: string;
   /** Merged from `/v1/schedule/now` — live game, next upcoming, or last game if series finished. */
   nextGame?: NextGameInfo | null;
+  /** Finished games only (typically game 1–7), from `/v1/schedule/now`. */
+  completedGames?: SeriesCompletedGame[];
+};
+
+export type ScheduleTeamSide = {
+  abbrev: string;
+  /** Present on some responses when the game is final or in progress. */
+  score?: number;
 };
 
 export type ScheduleGame = {
@@ -73,16 +81,28 @@ export type ScheduleGame = {
   startTimeUTC: string;
   gameState: string;
   venue?: { default: string };
-  awayTeam: { abbrev: string };
-  homeTeam: { abbrev: string };
+  awayTeam: ScheduleTeamSide;
+  homeTeam: ScheduleTeamSide;
   gameCenterLink?: string;
   seriesUrl?: string;
+  /** Some schedule payloads nest scores here instead of on teams. */
+  score?: { away?: number; home?: number };
   seriesStatus?: {
     round: number;
     seriesAbbrev: string;
     seriesLetter: string;
     gameNumberOfSeries: number;
   };
+};
+
+export type SeriesCompletedGame = {
+  gameNumber: number;
+  gameId: number;
+  awayAbbrev: string;
+  homeAbbrev: string;
+  awayScore: number | null;
+  homeScore: number | null;
+  gameCenterUrl?: string;
 };
 
 export type ScheduleNowResponse = {
@@ -107,6 +127,54 @@ export function scheduleGameStateLabel(state: string): string {
 
 export function isLiveScheduleGameState(state: string): boolean {
   return LIVE_GAME_STATES.has(state);
+}
+
+const COMPLETED_GAME_STATES = new Set(["OFF", "FINAL"]);
+
+export function isCompletedScheduleGameState(state: string): boolean {
+  return COMPLETED_GAME_STATES.has(state);
+}
+
+function readScheduleGameScores(g: ScheduleGame): { away: number; home: number } | null {
+  const a = g.awayTeam?.score;
+  const h = g.homeTeam?.score;
+  if (typeof a === "number" && typeof h === "number") return { away: a, home: h };
+  const s = g.score;
+  if (
+    s &&
+    typeof s.away === "number" &&
+    typeof s.home === "number"
+  ) {
+    return { away: s.away, home: s.home };
+  }
+  return null;
+}
+
+export function buildCompletedGamesList(
+  games: ScheduleGame[],
+): SeriesCompletedGame[] {
+  const rows: SeriesCompletedGame[] = [];
+  for (const g of games) {
+    if (!g.seriesStatus || !isCompletedScheduleGameState(g.gameState)) continue;
+    const sc = readScheduleGameScores(g);
+    rows.push({
+      gameNumber: g.seriesStatus.gameNumberOfSeries,
+      gameId: g.id,
+      awayAbbrev: g.awayTeam.abbrev,
+      homeAbbrev: g.homeTeam.abbrev,
+      awayScore: sc?.away ?? null,
+      homeScore: sc?.home ?? null,
+      gameCenterUrl: g.gameCenterLink?.trim()
+        ? nhlSiteUrl(g.gameCenterLink.trim())
+        : undefined,
+    });
+  }
+  rows.sort((a, b) => a.gameNumber - b.gameNumber);
+  const byNumber = new Map<number, SeriesCompletedGame>();
+  for (const r of rows) {
+    byNumber.set(r.gameNumber, r);
+  }
+  return [...byNumber.values()].sort((a, b) => a.gameNumber - b.gameNumber);
 }
 
 function scheduleSeriesKey(status: NonNullable<ScheduleGame["seriesStatus"]>): string {
@@ -182,6 +250,7 @@ export function mergeScheduleIntoSeries(
     const games = bySeries.get(s.id);
     const featured = games ? pickFeaturedScheduleGame(games) : null;
     s.nextGame = featured ? scheduleGameToNextInfo(featured) : null;
+    s.completedGames = games?.length ? buildCompletedGamesList(games) : [];
   }
 }
 

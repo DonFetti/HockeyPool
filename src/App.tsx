@@ -15,6 +15,7 @@ function usePlayoffData(expectedSeason: number) {
   const [normalized, setNormalized] = useState<
     Awaited<ReturnType<typeof fetchPlayoffCarousel>>["normalized"]
   >([]);
+  const [currentRound, setCurrentRound] = useState(1);
 
   const load = async () => {
     setStatus("loading");
@@ -23,6 +24,11 @@ function usePlayoffData(expectedSeason: number) {
       const sid = expectedSeason;
       const { carousel, normalized: norm } = await fetchPlayoffCarousel(sid);
       setSeasonId(carousel.seasonId);
+      setCurrentRound(
+        typeof carousel.currentRound === "number" && carousel.currentRound >= 1
+          ? carousel.currentRound
+          : 1,
+      );
       setNormalized(norm);
       setUpdatedAt(new Date());
       setStatus("ok");
@@ -38,7 +44,15 @@ function usePlayoffData(expectedSeason: number) {
     return () => window.clearInterval(id);
   }, [expectedSeason]);
 
-  return { status, error, updatedAt, seasonId, normalized, reload: load };
+  return {
+    status,
+    error,
+    updatedAt,
+    seasonId,
+    currentRound,
+    normalized,
+    reload: load,
+  };
 }
 
 export default function App() {
@@ -46,7 +60,7 @@ export default function App() {
   const defaultSeason = seasonIdFromDate();
   const expectedSeason = picks.seasonId ?? defaultSeason;
 
-  const { status, error, updatedAt, seasonId, normalized, reload } =
+  const { status, error, updatedAt, seasonId, currentRound, normalized, reload } =
     usePlayoffData(expectedSeason);
 
   const scores =
@@ -92,7 +106,11 @@ export default function App() {
       {scores && (
         <>
           <Standings andrew={scores.andrew} lincoln={scores.lincoln} />
-          <Bracket series={normalized} picks={picks} />
+          <Bracket
+            series={normalized}
+            picks={picks}
+            currentRound={currentRound}
+          />
         </>
       )}
 

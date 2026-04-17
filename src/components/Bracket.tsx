@@ -1,4 +1,8 @@
-import type { NormalizedSeries, NormalizedTeam } from "../lib/nhl";
+import type {
+  NormalizedSeries,
+  NormalizedTeam,
+  SeriesCompletedGame,
+} from "../lib/nhl";
 import {
   isEasternRoundOne,
   isWesternRoundOne,
@@ -6,11 +10,28 @@ import {
   nhlSiteUrl,
   scheduleGameStateLabel,
 } from "../lib/nhl";
+import { useEffect, useState } from "react";
 import type { PoolPicksFile } from "../lib/scoring";
+
+const ACCORDION_ROUNDS = 4 as const;
+
+const ROUND_SUBTITLE: Record<number, string> = {
+  1: "First round",
+  2: "Second round",
+  3: "Conference finals",
+  4: "Stanley Cup Final",
+};
+
+function clampAccordionRound(r: number): number {
+  if (!Number.isFinite(r)) return 1;
+  return Math.min(ACCORDION_ROUNDS, Math.max(1, Math.floor(r)));
+}
 
 type Props = {
   series: NormalizedSeries[];
   picks: PoolPicksFile;
+  /** From NHL carousel `currentRound`; controls which accordion panel opens by default. */
+  currentRound: number;
 };
 
 /** Prefer dark-mark SVGs on our dark UI; fall back to the “light” asset if needed. */
@@ -34,6 +55,43 @@ function TeamLogo({ team }: { team: NormalizedTeam }) {
         className="team-logo-img"
       />
     </span>
+  );
+}
+
+function formatFinalScoreLine(g: SeriesCompletedGame): string {
+  if (g.awayScore != null && g.homeScore != null) {
+    return `${g.awayAbbrev} ${g.awayScore} @ ${g.homeAbbrev} ${g.homeScore}`;
+  }
+  return `${g.awayAbbrev} @ ${g.homeAbbrev}`;
+}
+
+function SeriesResultsDetails({ games }: { games: SeriesCompletedGame[] }) {
+  if (games.length === 0) return null;
+
+  return (
+    <details className="series-results">
+      <summary className="series-results-summary mono">
+        Game results ({games.length} played)
+      </summary>
+      <ul className="series-results-list">
+        {games.map((g) => (
+          <li key={g.gameId} className="series-result-item">
+            <span className="series-result-meta mono">Game {g.gameNumber}</span>
+            <span className="series-result-score mono">{formatFinalScoreLine(g)}</span>
+            {g.gameCenterUrl && (
+              <a
+                className="series-result-gc"
+                href={g.gameCenterUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Box / GC
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -162,6 +220,11 @@ function SeriesCard({
           );
         })}
       </div>
+
+      {s.completedGames && s.completedGames.length > 0 && (
+        <SeriesResultsDetails games={s.completedGames} />
+      )}
+
       <footer className="series-foot muted">
         First to {s.neededToWin} wins
       </footer>
@@ -169,7 +232,7 @@ function SeriesCard({
   );
 }
 
-function RoundBlock({
+function RoundSubBlock({
   title,
   items,
   picks,
@@ -180,8 +243,8 @@ function RoundBlock({
 }) {
   if (items.length === 0) return null;
   return (
-    <div className="round-block">
-      <h3 className="round-title">{title}</h3>
+    <div className="round-sub-block">
+      <h4 className="round-sub-title">{title}</h4>
       <div className="series-grid">
         {items.map((s) => (
           <SeriesCard
@@ -196,52 +259,143 @@ function RoundBlock({
   );
 }
 
-export function Bracket({ series, picks }: Props) {
+export function Bracket({ series, picks, currentRound }: Props) {
   const byRound = new Map<number, NormalizedSeries[]>();
   for (const s of series) {
     const list = byRound.get(s.roundNumber) ?? [];
     list.push(s);
     byRound.set(s.roundNumber, list);
   }
-  const rounds = [...byRound.keys()].sort((a, b) => a - b);
 
   const r1 = series.filter((s) => s.roundNumber === 1);
-  const east1 = r1.filter(isEasternRoundOne).sort((a, b) => a.seriesLetter.localeCompare(b.seriesLetter));
-  const west1 = r1.filter(isWesternRoundOne).sort((a, b) => a.seriesLetter.localeCompare(b.seriesLetter));
+  const east1 = r1
+    .filter(isEasternRoundOne)
+    .sort((a, b) => a.seriesLetter.localeCompare(b.seriesLetter));
+  const west1 = r1
+    .filter(isWesternRoundOne)
+    .sort((a, b) => a.seriesLetter.localeCompare(b.seriesLetter));
   const r1Other = r1
     .filter((s) => !isEasternRoundOne(s) && !isWesternRoundOne(s))
     .sort((a, b) => a.seriesLetter.localeCompare(b.seriesLetter));
+
+  const apiRound = clampAccordionRound(currentRound);
+  const [openRound, setOpenRound] = useState<number | null>(apiRound);
+
+  useEffect(() => {
+    setOpenRound(clampAccordionRound(currentRound));
+  }, [currentRound]);
+
+  function renderRoundPanel(rn: number) {
+    if (rn === 1) {
+      const hasR1 =
+        east1.length > 0 || west1.length > 0 || r1Other.length > 0;
+      if (!hasR1) {
+        return (
+          <p className="round-accordion-empty muted">
+            No series in this round yet.
+          </p>
+        );
+      }
+      return (
+        <div className="round-accordion-panel-inner">
+          {(east1.length > 0 || west1.length > 0) && (
+            <div className="r1-split">
+              <RoundSubBlock
+                title="East — first round (A–D)"
+                items={east1}
+                picks={picks}
+              />
+              <RoundSubBlock
+                title="West — first round (E–H)"
+                items={west1}
+                picks={picks}
+              />
+            </div>
+          )}
+          <RoundSubBlock
+            title="First round (other)"
+            items={r1Other}
+            picks={picks}
+          />
+        </div>
+      );
+    }
+
+    const items = (byRound.get(rn) ?? []).sort((a, b) =>
+      a.seriesLetter.localeCompare(b.seriesLetter),
+    );
+    if (items.length === 0) {
+      return (
+        <p className="round-accordion-empty muted">
+          No series in this round yet.
+        </p>
+      );
+    }
+    return (
+      <div className="series-grid">
+        {items.map((s) => (
+          <SeriesCard
+            key={s.id}
+            s={s}
+            andrewPick={picks.andrew[s.id]}
+            lincolnPick={picks.lincoln[s.id]}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <section className="bracket" aria-labelledby="bracket-heading">
       <h2 id="bracket-heading">Playoff bracket</h2>
       <p className="bracket-sub muted">
-        First round is split East (A–D) and West (E–H). Later rounds follow the
-        API order.
+        Rounds 1–4 in expandable sections. The NHL’s current playoff round
+        opens automatically; earlier rounds stay available below.
       </p>
 
-      {rounds.includes(1) && (
-        <>
-          <div className="r1-split">
-            <RoundBlock title="East — first round" items={east1} picks={picks} />
-            <RoundBlock title="West — first round" items={west1} picks={picks} />
-          </div>
-          <RoundBlock title="First round (other)" items={r1Other} picks={picks} />
-        </>
-      )}
-
-      {rounds
-        .filter((r) => r !== 1)
-        .map((rn) => (
-          <RoundBlock
-            key={rn}
-            title={`Round ${rn}`}
-            items={(byRound.get(rn) ?? []).sort((a, b) =>
-              a.seriesLetter.localeCompare(b.seriesLetter),
-            )}
-            picks={picks}
-          />
-        ))}
+      <div className="bracket-accordions">
+        {Array.from({ length: ACCORDION_ROUNDS }, (_, i) => i + 1).map(
+          (rn) => {
+            const isOpen = openRound === rn;
+            const panelId = `bracket-round-${rn}-panel`;
+            const btnId = `bracket-round-${rn}-btn`;
+            return (
+              <div key={rn} className="bracket-accordion-item">
+                <button
+                  type="button"
+                  id={btnId}
+                  className={`bracket-accordion-trigger ${isOpen ? "is-open" : ""}`}
+                  aria-expanded={isOpen}
+                  aria-controls={panelId}
+                  onClick={() =>
+                    setOpenRound((prev) => (prev === rn ? null : rn))
+                  }
+                >
+                  <span className="bracket-accordion-trigger-main mono">
+                    Round {rn}
+                  </span>
+                  <span className="bracket-accordion-trigger-sub muted">
+                    {ROUND_SUBTITLE[rn] ?? ""}
+                  </span>
+                  <span className="bracket-accordion-chevron" aria-hidden>
+                    {isOpen ? "\u25BE" : "\u25B8"}
+                  </span>
+                </button>
+                {isOpen && (
+                  <div
+                    id={panelId}
+                    role="region"
+                    aria-labelledby={btnId}
+                    className="bracket-accordion-panel"
+                  >
+                    {renderRoundPanel(rn)}
+                  </div>
+                )}
+              </div>
+            );
+          },
+        )}
+      </div>
     </section>
   );
 }
