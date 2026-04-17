@@ -22,7 +22,7 @@ Redeploy after changing picks (or run locally).
 
 ## Deploy on Netlify (free tier)
 
-This repo is ready for Netlify: [`netlify.toml`](netlify.toml) sets the build, publish directory (`dist`), Node 20, **Functions** in `netlify/functions`, API **redirects** to the NHL proxy, and the SPA fallback.
+This repo is ready for Netlify: [`netlify.toml`](netlify.toml) sets the build, publish directory (`dist`), Node 20, **rewrite proxies** from `/api/nhl/*` → [api-web.nhle.com](https://api-web.nhle.com) (and `/api/statsapi/*` → statsapi) so the browser stays same-origin and avoids CORS, plus the SPA fallback.
 
 1. Sign in at [Netlify](https://app.netlify.com/) (GitHub login is easiest).
 2. **Add new site** → **Import an existing project** → authorize GitHub if asked.
@@ -32,7 +32,7 @@ This repo is ready for Netlify: [`netlify.toml`](netlify.toml) sets the build, p
    - **Publish directory:** `dist`
 5. Click **Deploy**. After the first deploy, your site URL is on the site overview; future `git push` to the linked branch redeploys automatically.
 
-**Local parity with production:** run `npx netlify dev` from the project root (uses the same redirects and Functions as production, with Vite on port 5173 per `netlify.toml`).
+**Local parity with production:** run `npx netlify dev` from the project root (uses the same rewrites as production, with Vite on port 5173 per `netlify.toml`), or use `npm run dev` (Vite’s dev proxy matches the same `/api/nhl` paths).
 
 ### Environment variables
 

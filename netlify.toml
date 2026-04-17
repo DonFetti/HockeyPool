@@ -5,23 +5,22 @@
 [build.environment]
   NODE_VERSION = "20"
 
-[functions]
-  directory = "netlify/functions"
-
 [dev]
   command = "npm run dev"
   targetPort = 5173
   publish = "dist"
 
+# Proxy API calls on the site origin so the browser avoids NHL CORS issues.
+# (Using :splat in a Function query string is unreliable; Netlify's rewrite proxy is not.)
 [[redirects]]
   from = "/api/nhl/*"
-  to = "/.netlify/functions/nhl-proxy?path=/:splat"
+  to = "https://api-web.nhle.com/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/api/statsapi/*"
-  to = "/.netlify/functions/nhl-proxy?path=/:splat&host=statsapi"
+  to = "https://statsapi.web.nhl.com/:splat"
   status = 200
   force = true
 
