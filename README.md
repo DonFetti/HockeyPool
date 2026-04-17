@@ -22,14 +22,17 @@ Redeploy after changing picks (or run locally).
 
 ## Deploy on Netlify (free tier)
 
-1. Push this repo to GitHub (or GitLab / Bitbucket).
-2. In Netlify: **Add new site** → **Import an existing project** → connect the repo.
-3. Build settings:
+This repo is ready for Netlify: [`netlify.toml`](netlify.toml) sets the build, publish directory (`dist`), Node 20, **Functions** in `netlify/functions`, API **redirects** to the NHL proxy, and the SPA fallback.
+
+1. Sign in at [Netlify](https://app.netlify.com/) (GitHub login is easiest).
+2. **Add new site** → **Import an existing project** → authorize GitHub if asked.
+3. Pick the repo (e.g. [DonFetti/HockeyPool](https://github.com/DonFetti/HockeyPool)).
+4. Leave **Build command** and **Publish directory** empty if Netlify shows “Configured by netlify.toml”; otherwise set:
    - **Build command:** `npm run build`
    - **Publish directory:** `dist`
-4. Deploy. Netlify will run the build and serve the static app.
+5. Click **Deploy**. After the first deploy, your site URL is on the site overview; future `git push` to the linked branch redeploys automatically.
 
-The included [`netlify.toml`](netlify.toml) sets the same build/publish paths, adds a **serverless proxy** at `/api/nhl/*` (so the browser is not blocked by NHL CORS), and sends unknown paths to `index.html` for SPA hosting.
+**Local parity with production:** run `npx netlify dev` from the project root (uses the same redirects and Functions as production, with Vite on port 5173 per `netlify.toml`).
 
 ### Environment variables
 
