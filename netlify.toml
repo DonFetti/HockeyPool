@@ -1,0 +1,21 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/nhl/*"
+  to = "/.netlify/functions/nhl-proxy?path=/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/statsapi/*"
+  to = "/.netlify/functions/nhl-proxy?path=/:splat&host=statsapi"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

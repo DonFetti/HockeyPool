@@ -1,0 +1,23 @@
+{
+  "seasonId": 20252026,
+  "andrew": {
+    "R1-A": "BUF",
+    "R1-B": "MTL",
+    "R1-C": "OTT",
+    "R1-D": "PIT",
+    "R1-E": "COL",
+    "R1-F": "MIN",
+    "R1-G": "UTA",
+    "R1-H": "EDM"
+  },
+  "lincoln": {
+    "R1-A": "BOS",
+    "R1-B": "TBL",
+    "R1-C": "CAR",
+    "R1-D": "PHI",
+    "R1-E": "LAK",
+    "R1-F": "DAL",
+    "R1-G": "VGK",
+    "R1-H": "ANA"
+  }
+}
