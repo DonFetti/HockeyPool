@@ -12,8 +12,7 @@ export function Standings({ andrew, lincoln }: Props) {
     <section className="standings" aria-labelledby="standings-heading">
       <h2 id="standings-heading">Pool standings</h2>
       <p className="standings-sub">
-        $1 per series when your pick wins the series. “Banked” is clinched;
-        “Up to” includes series still in play where your pick could still win.
+        $1 per series when your pick wins the series.
       </p>
       <div className="standings-grid">
         {rows.map((p) => (

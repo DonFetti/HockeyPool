@@ -58,8 +58,7 @@ export default function App() {
         <p className="eyebrow mono">Stanley Cup playoffs</p>
         <h1>Andrew vs Lincoln</h1>
         <p className="lede">
-          Live bracket from the NHL, your picks from{" "}
-          <code className="mono">src/picks.json</code>, and{" "}
+          Live bracket from the NHL, and{" "}
           <strong>$1 per series</strong> when your team wins the series.
         </p>
         <div className="hero-meta">

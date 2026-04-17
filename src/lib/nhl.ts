@@ -31,13 +31,22 @@ export type PlayoffCarousel = {
   }>;
 };
 
+export type NormalizedTeam = {
+  abbrev: string;
+  wins: number;
+  /** Primary mark from the API (often *_light.svg — works on dark backgrounds). */
+  logo?: string;
+  /** Alternate mark from the API (often *_dark.svg). */
+  darkLogo?: string;
+};
+
 export type NormalizedSeries = {
   id: string;
   roundNumber: number;
   roundAbbrev: string;
   seriesLetter: string;
-  top: { abbrev: string; wins: number };
-  bottom: { abbrev: string; wins: number };
+  top: NormalizedTeam;
+  bottom: NormalizedTeam;
   neededToWin: number;
   winnerAbbrev: string | null;
 };
@@ -60,8 +69,18 @@ export function normalizeCarousel(data: PlayoffCarousel): NormalizedSeries[] {
         roundNumber: s.roundNumber,
         roundAbbrev: round.roundAbbrev,
         seriesLetter: s.seriesLetter,
-        top: { abbrev: s.topSeed.abbrev, wins: s.topSeed.wins },
-        bottom: { abbrev: s.bottomSeed.abbrev, wins: s.bottomSeed.wins },
+        top: {
+          abbrev: s.topSeed.abbrev,
+          wins: s.topSeed.wins,
+          logo: s.topSeed.logo,
+          darkLogo: s.topSeed.darkLogo,
+        },
+        bottom: {
+          abbrev: s.bottomSeed.abbrev,
+          wins: s.bottomSeed.wins,
+          logo: s.bottomSeed.logo,
+          darkLogo: s.bottomSeed.darkLogo,
+        },
         neededToWin: needed,
         winnerAbbrev: winner,
       });

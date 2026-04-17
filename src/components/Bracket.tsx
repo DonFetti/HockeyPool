@@ -1,4 +1,4 @@
-import type { NormalizedSeries } from "../lib/nhl";
+import type { NormalizedSeries, NormalizedTeam } from "../lib/nhl";
 import {
   isEasternRoundOne,
   isWesternRoundOne,
@@ -9,6 +9,30 @@ type Props = {
   series: NormalizedSeries[];
   picks: PoolPicksFile;
 };
+
+/** Prefer dark-mark SVGs on our dark UI; fall back to the “light” asset if needed. */
+function teamLogoSrc(t: NormalizedTeam): string | undefined {
+  return t.darkLogo?.trim() || t.logo?.trim() || undefined;
+}
+
+function TeamLogo({ team }: { team: NormalizedTeam }) {
+  const src = teamLogoSrc(team);
+  if (!src) return <span className="team-logo team-logo--empty" aria-hidden />;
+
+  return (
+    <span className="team-logo">
+      <img
+        src={src}
+        alt=""
+        width={36}
+        height={36}
+        loading="lazy"
+        decoding="async"
+        className="team-logo-img"
+      />
+    </span>
+  );
+}
 
 function badgeForPick(
   s: NormalizedSeries,
@@ -32,8 +56,8 @@ function SeriesCard({
   lincolnPick?: string;
 }) {
   const rows = [
-    { label: s.top.abbrev, wins: s.top.wins, seed: "top" as const },
-    { label: s.bottom.abbrev, wins: s.bottom.wins, seed: "bottom" as const },
+    { team: s.top, seed: "top" as const },
+    { team: s.bottom, seed: "bottom" as const },
   ];
 
   return (
@@ -47,29 +71,35 @@ function SeriesCard({
         )}
       </header>
       <div className="series-teams">
-        {rows.map((r) => (
-          <div
-            key={r.seed}
-            className={`team-row ${s.winnerAbbrev === r.label ? "clinched" : ""}`}
-          >
-            <span className="team-abbr mono">{r.label}</span>
-            <span className="team-wins mono">{r.wins}</span>
-            <span className="pick-badges">
-              {andrewPick === r.label && (
-                <span className={`badge andrew ${badgeForPick(s, r.label, andrewPick)}`}>
-                  Andrew
-                </span>
-              )}
-              {lincolnPick === r.label && (
-                <span
-                  className={`badge lincoln ${badgeForPick(s, r.label, lincolnPick)}`}
-                >
-                  Lincoln
-                </span>
-              )}
-            </span>
-          </div>
-        ))}
+        {rows.map((r) => {
+          const abbr = r.team.abbrev;
+          return (
+            <div
+              key={r.seed}
+              className={`team-row ${s.winnerAbbrev === abbr ? "clinched" : ""}`}
+            >
+              <div className="team-main">
+                <TeamLogo team={r.team} />
+                <span className="team-abbr mono">{abbr}</span>
+              </div>
+              <span className="team-wins mono">{r.team.wins}</span>
+              <span className="pick-badges">
+                {andrewPick === abbr && (
+                  <span className={`badge andrew ${badgeForPick(s, abbr, andrewPick)}`}>
+                    Andrew
+                  </span>
+                )}
+                {lincolnPick === abbr && (
+                  <span
+                    className={`badge lincoln ${badgeForPick(s, abbr, lincolnPick)}`}
+                  >
+                    Lincoln
+                  </span>
+                )}
+              </span>
+            </div>
+          );
+        })}
       </div>
       <footer className="series-foot muted">
         First to {s.neededToWin} wins

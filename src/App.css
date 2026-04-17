@@ -231,6 +231,33 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+.team-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.team-logo {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+}
+
+.team-logo--empty {
+  width: 36px;
+  height: 36px;
+}
+
+.team-logo-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  display: block;
+}
+
 .team-row.clinched {
   outline: 1px solid rgba(125, 211, 192, 0.45);
  background: rgba(125, 211, 192, 0.06);
