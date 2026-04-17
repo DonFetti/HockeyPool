@@ -6,13 +6,21 @@ type Props = {
 };
 
 export function Standings({ andrew, lincoln }: Props) {
-  const rows = [andrew, lincoln].sort((a, b) => b.earnedDollars - a.earnedDollars);
+  const rows = [andrew, lincoln].sort((a, b) => {
+    if (b.currentDollars !== a.currentDollars) {
+      return b.currentDollars - a.currentDollars;
+    }
+    return b.confirmedDollars - a.confirmedDollars;
+  });
 
   return (
     <section className="standings" aria-labelledby="standings-heading">
       <h2 id="standings-heading">Pool standings</h2>
       <p className="standings-sub">
-        $1 per series when your pick wins the series.
+        <strong>Current</strong> counts confirmed wins plus $1 for each ongoing
+        series where your pick leads in games. <strong>Confirmed</strong> is
+        money from finished series only. <strong>Up to</strong> is the ceiling if
+        every alive pick wins.
       </p>
       <div className="standings-grid">
         {rows.map((p) => (
@@ -20,8 +28,12 @@ export function Standings({ andrew, lincoln }: Props) {
             <h3>{p.name}</h3>
             <div className="standings-numbers">
               <div>
-                <span className="label">Banked</span>
-                <span className="value mono">${p.earnedDollars}</span>
+                <span className="label">Current</span>
+                <span className="value value--current mono">${p.currentDollars}</span>
+              </div>
+              <div>
+                <span className="label">Confirmed</span>
+                <span className="value mono">${p.confirmedDollars}</span>
               </div>
               <div>
                 <span className="label">Up to</span>

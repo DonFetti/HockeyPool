@@ -10,7 +10,13 @@ export type PoolPicksFile = {
 
 export type PlayerScore = {
   name: string;
-  earnedDollars: number;
+  /** $1 per series clinched with a correct pick. */
+  confirmedDollars: number;
+  /**
+   * Confirmed + $1 per ongoing series where your pick is ahead in wins
+   * (snapshot “if things stopped now” for incomplete matchups).
+   */
+  currentDollars: number;
   potentialMaxDollars: number;
   correctSeriesIds: string[];
   pendingSeriesIds: string[];
@@ -33,6 +39,21 @@ function pickResult(
   return "pending";
 }
 
+function isPickLeadingIncompleteSeries(
+  series: NormalizedSeries,
+  pick: string | undefined,
+): boolean {
+  if (!pick) return false;
+  const p = pick.toUpperCase();
+  if (series.winnerAbbrev) return false;
+  if (p !== series.top.abbrev && p !== series.bottom.abbrev) return false;
+  const tw = series.top.wins;
+  const bw = series.bottom.wins;
+  if (tw === bw) return false;
+  if (p === series.top.abbrev) return tw > bw;
+  return bw > tw;
+}
+
 export function scorePlayer(
   name: string,
   picks: Record<string, string>,
@@ -50,9 +71,22 @@ export function scorePlayer(
     else if (r === "wrong") wrongSeriesIds.push(s.id);
   }
 
+  const confirmedDollars = correctSeriesIds.length;
+  let leadingIncomplete = 0;
+  for (const s of allSeries) {
+    const pick = picks[s.id]?.toUpperCase();
+    if (
+      pickResult(s, pick) === "pending" &&
+      isPickLeadingIncompleteSeries(s, pick)
+    ) {
+      leadingIncomplete += 1;
+    }
+  }
+
   return {
     name,
-    earnedDollars: correctSeriesIds.length,
+    confirmedDollars,
+    currentDollars: confirmedDollars + leadingIncomplete,
     potentialMaxDollars: correctSeriesIds.length + pendingSeriesIds.length,
     correctSeriesIds,
     pendingSeriesIds,
