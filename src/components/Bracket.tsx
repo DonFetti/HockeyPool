@@ -7,6 +7,7 @@ import {
   isEasternRoundOne,
   isWesternRoundOne,
   isLiveScheduleGameState,
+  isScoreboardLiveState,
   nhlSiteUrl,
   scheduleGameStateLabel,
 } from "../lib/nhl";
@@ -95,6 +96,21 @@ function SeriesResultsDetails({ games }: { games: SeriesCompletedGame[] }) {
   );
 }
 
+function nextGameStartLabel(ng: {
+  startTimeUTC: string;
+  venueDefault?: string;
+}): string {
+  const when = new Date(ng.startTimeUTC).toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+  return ng.venueDefault ? `${when} · ${ng.venueDefault}` : when;
+}
+
 function badgeForPick(
   s: NormalizedSeries,
   abbrev: string,
@@ -135,35 +151,62 @@ function SeriesCard({
       {(s.nextGame || s.seriesLink) && (
         <div className="series-next">
           {s.nextGame && (
-            <p className="series-next-line">
-              <span
-                className={`series-state mono ${isLiveScheduleGameState(s.nextGame.gameState) ? "is-live" : ""}`}
-              >
-                {scheduleGameStateLabel(s.nextGame.gameState)}
-              </span>
-              <span className="muted"> · </span>
-              <span className="mono">Game {s.nextGame.gameNumberOfSeries}</span>
-              <span className="muted"> · </span>
-              <span className="mono matchup">
-                {s.nextGame.awayAbbrev} @ {s.nextGame.homeAbbrev}
-              </span>
-            </p>
+            <>
+              <p className="series-next-line">
+                <span
+                  className={`series-state mono ${isLiveScheduleGameState(s.nextGame.gameState) ? "is-live" : ""}`}
+                >
+                  {scheduleGameStateLabel(s.nextGame.gameState)}
+                </span>
+                <span className="muted"> · </span>
+                <span className="mono">Game {s.nextGame.gameNumberOfSeries}</span>
+                <span className="muted"> · </span>
+                <span className="mono matchup">
+                  {s.nextGame.awayAbbrev} @ {s.nextGame.homeAbbrev}
+                </span>
+              </p>
+
+              {isScoreboardLiveState(s.nextGame.gameState) && (
+                <div className="series-live-box">
+                  {s.nextGame.awayScore != null &&
+                  s.nextGame.homeScore != null ? (
+                    <p className="series-live-score mono">
+                      {s.nextGame.awayAbbrev} {s.nextGame.awayScore}{" "}
+                      <span className="series-live-dash">—</span>{" "}
+                      {s.nextGame.homeAbbrev} {s.nextGame.homeScore}
+                    </p>
+                  ) : (
+                    <p className="series-live-score muted mono">Score…</p>
+                  )}
+                  {s.nextGame.livePeriodClock && (
+                    <p className="series-live-clock mono">
+                      {s.nextGame.livePeriodClock}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {(s.nextGame.gameState === "FUT" ||
+                s.nextGame.gameState === "PRE") && (
+                <p className="series-next-when">
+                  <span className="series-next-when-label">Starts</span>{" "}
+                  <span className="mono">{nextGameStartLabel(s.nextGame)}</span>
+                </p>
+              )}
+
+              {s.nextGame.gameState === "OFF" &&
+                s.nextGame.awayScore != null &&
+                s.nextGame.homeScore != null && (
+                  <p className="series-next-final muted mono">
+                    Final: {s.nextGame.awayAbbrev} {s.nextGame.awayScore} —{" "}
+                    {s.nextGame.homeAbbrev} {s.nextGame.homeScore}
+                  </p>
+                )}
+            </>
           )}
-          {s.nextGame && (
-            <p className="series-next-when muted">
-              {new Date(s.nextGame.startTimeUTC).toLocaleString(undefined, {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-                timeZoneName: "short",
-              })}
-              {s.nextGame.venueDefault ? ` · ${s.nextGame.venueDefault}` : ""}
-            </p>
-          )}
+
           <div className="series-links">
-            {s.nextGame && (
+            {s.nextGame?.gameCenterUrl && (
               <a
                 className="series-link series-link--primary"
                 href={s.nextGame.gameCenterUrl}

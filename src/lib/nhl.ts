@@ -49,7 +49,12 @@ export type NextGameInfo = {
   homeAbbrev: string;
   venueDefault?: string;
   /** Absolute https://www.nhl.com/gamecenter/... */
-  gameCenterUrl: string;
+  gameCenterUrl?: string;
+  /** Present when the API includes scores (live / final featured game). */
+  awayScore?: number | null;
+  homeScore?: number | null;
+  /** e.g. "3rd · 4:12" or "OT · 1:03" when live. */
+  livePeriodClock?: string | null;
 };
 
 export type NormalizedSeries = {
@@ -87,6 +92,16 @@ export type ScheduleGame = {
   seriesUrl?: string;
   /** Some schedule payloads nest scores here instead of on teams. */
   score?: { away?: number; home?: number };
+  periodDescriptor?: {
+    number: number;
+    periodType: string;
+    maxRegulationPeriods?: number;
+  };
+  /** Present on live / in-progress games in many schedule payloads. */
+  clock?: {
+    timeRemaining?: string;
+    running?: boolean;
+  };
   seriesStatus?: {
     round: number;
     seriesAbbrev: string;
@@ -129,10 +144,38 @@ export function isLiveScheduleGameState(state: string): boolean {
   return LIVE_GAME_STATES.has(state);
 }
 
+/** In progress enough to show period/clock and (usually) scores — excludes PRE. */
+const SCOREBOARD_LIVE_STATES = new Set(["LIVE", "CRIT", "INT"]);
+
+export function isScoreboardLiveState(state: string): boolean {
+  return SCOREBOARD_LIVE_STATES.has(state);
+}
+
 const COMPLETED_GAME_STATES = new Set(["OFF", "FINAL"]);
 
 export function isCompletedScheduleGameState(state: string): boolean {
   return COMPLETED_GAME_STATES.has(state);
+}
+
+function formatPeriodAndClock(g: ScheduleGame): string | null {
+  const pd = g.periodDescriptor;
+  const tr = g.clock?.timeRemaining?.trim();
+  let period = "";
+  if (pd) {
+    if (pd.periodType === "OT") period = "OT";
+    else if (pd.periodType === "SO") period = "Shootout";
+    else if (pd.periodType === "REG" || !pd.periodType) {
+      const n = pd.number;
+      if (n === 1) period = "1st";
+      else if (n === 2) period = "2nd";
+      else if (n === 3) period = "3rd";
+      else period = `${n}th`;
+    } else period = pd.periodType;
+  }
+  if (period && tr) return `${period} · ${tr}`;
+  if (tr) return tr;
+  if (period) return period;
+  return null;
 }
 
 function readScheduleGameScores(g: ScheduleGame): { away: number; home: number } | null {
@@ -226,9 +269,13 @@ export function pickFeaturedScheduleGame(games: ScheduleGame[]): ScheduleGame | 
   return sorted[sorted.length - 1];
 }
 
-function scheduleGameToNextInfo(g: ScheduleGame): NextGameInfo | null {
+function scheduleGameToNextInfo(g: ScheduleGame): NextGameInfo {
   const path = g.gameCenterLink?.trim();
-  if (!path) return null;
+  const scores = readScheduleGameScores(g);
+  const liveClock = isScoreboardLiveState(g.gameState)
+    ? formatPeriodAndClock(g)
+    : null;
+
   return {
     gameId: g.id,
     startTimeUTC: g.startTimeUTC,
@@ -237,7 +284,10 @@ function scheduleGameToNextInfo(g: ScheduleGame): NextGameInfo | null {
     awayAbbrev: g.awayTeam.abbrev,
     homeAbbrev: g.homeTeam.abbrev,
     venueDefault: g.venue?.default,
-    gameCenterUrl: nhlSiteUrl(path),
+    gameCenterUrl: path ? nhlSiteUrl(path) : undefined,
+    awayScore: scores?.away ?? null,
+    homeScore: scores?.home ?? null,
+    livePeriodClock: liveClock,
   };
 }
 

@@ -316,7 +316,47 @@
 
 .series-next-when {
   margin: 0 0 0.45rem;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
+  color: #c5cedd;
+}
+
+.series-next-when-label {
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  margin-right: 0.25rem;
+}
+
+.series-live-box {
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  background: rgba(125, 211, 192, 0.08);
+  border: 1px solid rgba(125, 211, 192, 0.25);
+}
+
+.series-live-score {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.series-live-dash {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.series-live-clock {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  color: #b7c2d6;
+}
+
+.series-next-final {
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
 }
 
 .series-state.is-live {
