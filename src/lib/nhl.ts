@@ -310,12 +310,24 @@ export async function fetchPlayoffCarousel(
   seasonId: number = seasonIdFromDate(),
 ): Promise<{ carousel: PlayoffCarousel; normalized: NormalizedSeries[] }> {
   const sid = seasonId;
-  const [carousel, schedule] = await Promise.all([
-    fetchJson<PlayoffCarousel>(`/v1/playoff-series/carousel/${sid}`),
-    fetchJson<ScheduleNowResponse>(`/v1/schedule/now`),
-  ]);
+  const carousel = await fetchJson<PlayoffCarousel>(
+    `/v1/playoff-series/carousel/${sid}`,
+  );
   const normalized = normalizeCarousel(carousel);
-  mergeScheduleIntoSeries(normalized, schedule);
+
+  // Schedule is optional: larger payload / flaky proxy / timeouts should not break the bracket.
+  let schedule: ScheduleNowResponse | null = null;
+  try {
+    schedule = await fetchJson<ScheduleNowResponse>(`/v1/schedule/now`);
+  } catch {
+    schedule = null;
+  }
+
+  mergeScheduleIntoSeries(
+    normalized,
+    schedule ?? { gameWeek: [] },
+  );
+
   return { carousel, normalized };
 }
 
