@@ -2,6 +2,9 @@ import type { NormalizedSeries, NormalizedTeam } from "../lib/nhl";
 import {
   isEasternRoundOne,
   isWesternRoundOne,
+  isLiveScheduleGameState,
+  nhlSiteUrl,
+  scheduleGameStateLabel,
 } from "../lib/nhl";
 import type { PoolPicksFile } from "../lib/scoring";
 
@@ -70,6 +73,64 @@ function SeriesCard({
           <span className="series-live muted">In progress</span>
         )}
       </header>
+
+      {(s.nextGame || s.seriesLink) && (
+        <div className="series-next">
+          {s.nextGame && (
+            <p className="series-next-line">
+              <span
+                className={`series-state mono ${isLiveScheduleGameState(s.nextGame.gameState) ? "is-live" : ""}`}
+              >
+                {scheduleGameStateLabel(s.nextGame.gameState)}
+              </span>
+              <span className="muted"> · </span>
+              <span className="mono">Game {s.nextGame.gameNumberOfSeries}</span>
+              <span className="muted"> · </span>
+              <span className="mono matchup">
+                {s.nextGame.awayAbbrev} @ {s.nextGame.homeAbbrev}
+              </span>
+            </p>
+          )}
+          {s.nextGame && (
+            <p className="series-next-when muted">
+              {new Date(s.nextGame.startTimeUTC).toLocaleString(undefined, {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                timeZoneName: "short",
+              })}
+              {s.nextGame.venueDefault ? ` · ${s.nextGame.venueDefault}` : ""}
+            </p>
+          )}
+          <div className="series-links">
+            {s.nextGame && (
+              <a
+                className="series-link series-link--primary"
+                href={s.nextGame.gameCenterUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {isLiveScheduleGameState(s.nextGame.gameState)
+                  ? "Game Center (live)"
+                  : "Game Center"}
+              </a>
+            )}
+            {s.seriesLink && (
+              <a
+                className="series-link"
+                href={nhlSiteUrl(s.seriesLink)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Series on NHL.com
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="series-teams">
         {rows.map((r) => {
           const abbr = r.team.abbrev;
