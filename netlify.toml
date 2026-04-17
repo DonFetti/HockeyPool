@@ -10,11 +10,12 @@
   targetPort = 5173
   publish = "dist"
 
-# Proxy API calls on the site origin so the browser avoids NHL CORS issues.
-# (Using :splat in a Function query string is unreliable; Netlify's rewrite proxy is not.)
+# Proxy NHL via a Function so redirects (e.g. /v1/schedule/now → dated URL) are
+# followed server-side. Netlify's URL proxy forwards 307 Location to the browser,
+# which then hits api-web.nhle.com directly and fails CORS.
 [[redirects]]
   from = "/api/nhl/*"
-  to = "https://api-web.nhle.com/:splat"
+  to = "/.netlify/functions/nhl-proxy"
   status = 200
   force = true
 
