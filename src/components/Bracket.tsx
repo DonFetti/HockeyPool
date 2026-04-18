@@ -4,6 +4,7 @@ import type {
   SeriesCompletedGame,
 } from "../lib/nhl";
 import {
+  isCompletedScheduleGameState,
   isEasternRoundOne,
   isWesternRoundOne,
   isLiveScheduleGameState,
@@ -194,7 +195,7 @@ function SeriesCard({
                 </p>
               )}
 
-              {s.nextGame.gameState === "OFF" &&
+              {isCompletedScheduleGameState(s.nextGame.gameState) &&
                 s.nextGame.awayScore != null &&
                 s.nextGame.homeScore != null && (
                   <p className="series-next-final muted mono">

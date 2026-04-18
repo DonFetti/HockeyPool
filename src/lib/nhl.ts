@@ -136,7 +136,7 @@ const LIVE_GAME_STATES = new Set(["LIVE", "CRIT", "INT", "PRE"]);
 export function scheduleGameStateLabel(state: string): string {
   if (LIVE_GAME_STATES.has(state)) return "Live";
   if (state === "FUT") return "Upcoming";
-  if (state === "OFF") return "Final";
+  if (state === "OFF" || state === "FINAL") return "Final";
   return state;
 }
 
@@ -291,6 +291,36 @@ function scheduleGameToNextInfo(g: ScheduleGame): NextGameInfo {
   };
 }
 
+/**
+ * Count series wins from completed games when box scores are present. The playoff
+ * carousel can lag real scores; schedule games are the source of truth for who won
+ * each game.
+ */
+function winsFromCompletedScheduleGames(
+  games: ScheduleGame[],
+  topAbbrev: string,
+  bottomAbbrev: string,
+): { top: number; bottom: number } {
+  let top = 0;
+  let bottom = 0;
+  for (const g of games) {
+    if (!g.seriesStatus || !isCompletedScheduleGameState(g.gameState)) continue;
+    const sc = readScheduleGameScores(g);
+    if (!sc || sc.away === sc.home) continue;
+    const w = sc.away > sc.home ? g.awayTeam.abbrev : g.homeTeam.abbrev;
+    if (w === topAbbrev) top += 1;
+    else if (w === bottomAbbrev) bottom += 1;
+  }
+  return { top, bottom };
+}
+
+function applyMergedSeriesWins(s: NormalizedSeries): void {
+  const need = s.neededToWin;
+  if (s.top.wins >= need) s.winnerAbbrev = s.top.abbrev;
+  else if (s.bottom.wins >= need) s.winnerAbbrev = s.bottom.abbrev;
+  else s.winnerAbbrev = null;
+}
+
 export function mergeScheduleIntoSeries(
   series: NormalizedSeries[],
   schedule: ScheduleNowResponse,
@@ -298,6 +328,16 @@ export function mergeScheduleIntoSeries(
   const bySeries = indexPlayoffGamesBySeries(schedule);
   for (const s of series) {
     const games = bySeries.get(s.id);
+    if (games?.length) {
+      const fromSchedule = winsFromCompletedScheduleGames(
+        games,
+        s.top.abbrev,
+        s.bottom.abbrev,
+      );
+      s.top.wins = Math.max(s.top.wins, fromSchedule.top);
+      s.bottom.wins = Math.max(s.bottom.wins, fromSchedule.bottom);
+      applyMergedSeriesWins(s);
+    }
     const featured = games ? pickFeaturedScheduleGame(games) : null;
     s.nextGame = featured ? scheduleGameToNextInfo(featured) : null;
     s.completedGames = games?.length ? buildCompletedGamesList(games) : [];
@@ -347,8 +387,25 @@ export function normalizeCarousel(data: PlayoffCarousel): NormalizedSeries[] {
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
-  const url = `${API_PREFIX}${path}`;
-  const res = await fetch(url);
+  const initial = `${API_PREFIX}${path.startsWith("/") ? path : `/${path}`}`;
+  let res = await fetch(initial);
+
+  // api-web redirects `/v1/schedule/now` → `/v1/schedule/YYYY-MM-DD`. Browsers see
+  // 3xx from the dev proxy as a failed fetch (`ok` false) unless we re-request
+  // the Location through the same `/api/nhl` origin.
+  if (res.status >= 300 && res.status < 400) {
+    const loc = res.headers.get("Location");
+    if (loc) {
+      try {
+        const resolved = new URL(loc, "https://api-web.nhle.com");
+        const tail = `${resolved.pathname}${resolved.search}`.replace(/^\/+/, "");
+        res = await fetch(`${API_PREFIX}/${tail}`);
+      } catch {
+        /* fall through to error below */
+      }
+    }
+  }
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`NHL API ${res.status}: ${text.slice(0, 200)}`);
